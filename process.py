@@ -17,15 +17,20 @@ socket). Only the beam content differs: proton is pencil-beam-scanning
 (beam -> ray -> beamlet/energy-layer, ProtonBeamEncoder), not VMAT control
 points (beam -> control_point, PhotonBeamEncoder).
 
-UNVERIFIED: the exact field names *inside* each beam entry of
-stacked-proton-beam-level-metadata.json (beams[].rays[].{ray_idx,
-ray_source, ray_target}, rays[].beamlets[].{beamlet_idx, energy,
-output_info}) are inferred from the training-data JSON schema
-(src/data/hf_dataset.py) by analogy with how Task 1's wrapper fields
-(output_info/output_file_idx/idx_in_output/minimum_cutoff) were confirmed
-against the real submission-instructions doc -- NOT yet confirmed against a
-real Task 3 submission. If a real evaluation 500s on parsing this file,
-check this hypothesis first (see run()'s metadata-parsing loop below).
+Metadata schema, updated after a real submission (2026-08-25, result
+78dc528f): image_entry["beams"]/beam["rays"]/ray["beamlets"] and each
+beamlet's output_info.{output_file_idx, idx_in_output} are CONFIRMED --
+that first real /invoke ran the entire slot-size precompute pass (every
+beamlet in the file) without a KeyError. The only failure was an optional
+`beam_idx`/`ray_idx` field used purely for a log line, not present in the
+real file -- fixed by falling back to our own loop index instead of
+depending on those keys (see run()'s main loop below). STILL UNVERIFIED
+(the crash happened before the model ever ran a real prediction): ray's
+ray_source/ray_target and beamlet's energy/minimum_cutoff -- still
+inferred from the training-data JSON schema (src/data/hf_dataset.py) by
+analogy with Task 1's confirmed wrapper. If the next submission fails
+differently (e.g. a KeyError inside predict_beamlet or on minimum_cutoff),
+check those field names next.
 
 Preprocessing (resample/crop-pad/body-mask/normalize) reuses the exact same
 `src/data/transforms.py` classes used during training -- critical, since any
@@ -284,10 +289,14 @@ def run(model, cfg, device):
 
         shape_zyx = tuple(reversed(original_image.GetSize()))
         n_beams = len(image_entry["beams"])
-        for beam in image_entry["beams"]:
-            for ray in beam["rays"]:
+        for beam_i, beam in enumerate(image_entry["beams"]):
+            for ray_i, ray in enumerate(beam["rays"]):
                 n_bl = len(ray["beamlets"])
-                print(f"  Beam {beam['beam_idx']} ray {ray['ray_idx']}: {n_bl} beamlet(s)")
+                # beam_idx/ray_idx aren't confirmed key names in the real
+                # metadata (see module docstring) and aren't needed for the
+                # actual computation below -- fall back to our own loop
+                # index rather than depending on a JSON field for logging.
+                print(f"  Beam {beam.get('beam_idx', beam_i)} ray {ray.get('ray_idx', ray_i)}: {n_bl} beamlet(s)")
                 for bl in ray["beamlets"]:
                     output_info = bl["output_info"]
                     idx = output_info["output_file_idx"]
