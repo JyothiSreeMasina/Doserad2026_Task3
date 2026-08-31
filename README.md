@@ -10,11 +10,10 @@ The full write-up — architecture, training, the water-equivalent-path-length
 (WEPL) correction, and an honestly-reported train/inference mismatch found
 in this submission after it was already scored — is the companion LNCS
 report, [*A Physics-Conditioned 3D U-Net for Proton Dose Prediction on
-CT*](https://github.com/JyothiSreeMasina/Doserad2026/blob/main/paper/proton_dose_ct_lncs.pdf),
-in the main project repository. Read Section 3 of that report before relying
-on this submission's numbers — it documents a real defect (detailed below)
-that this code still contains, by design, because that is what was actually
-scored.
+CT*](paper/proton_dose_ct_lncs.pdf), included in this repository. Read
+Section 3 of that report before relying on this submission's numbers — it
+documents a real defect (detailed below) that this code still contains, by
+design, because that is what was actually scored.
 
 ## Approach
 
@@ -54,9 +53,11 @@ of the paper.
 
 ```
 src/                Data pipeline, beam encoder, model, losses, training loop, evaluation metrics
+scripts/             train.py, evaluate_cloud.py — training and evaluation entry points
 configs/             Training config (beam type, modality, hyperparameters)
 app.py, process.py   Grand Challenge /health + /invoke submission server
 Dockerfile           Container build (root-level, for Grand Challenge's repo-linked build)
+paper/               LNCS algorithm-description report for this task
 ```
 
 ## Reproducing
@@ -65,11 +66,15 @@ Dockerfile           Container build (root-level, for Grand Challenge's repo-lin
 pip install -r requirements.txt
 ```
 
-The `src/` package here is the same training/evaluation library used across
-this team's four DoseRAD2026 submissions; the training entry point
-(`scripts/train.py`) lives in the
-[main project repository](https://github.com/JyothiSreeMasina/Doserad2026),
-run against `configs/task3_proton_ct.yaml` from this repo.
+**Train:**
+```bash
+python scripts/train.py --config configs/task3_proton_ct.yaml
+```
+
+**Evaluate against local held-out patients:**
+```bash
+python scripts/evaluate_cloud.py --config configs/task3_proton_ct.yaml --checkpoint checkpoints/task3_proton_ct/best.pt
+```
 
 Training data (75 patients, CT + proton beam JSON + Geant4 beamlet-level
 dose) is released by the challenge organizers on
