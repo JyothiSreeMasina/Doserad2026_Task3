@@ -124,7 +124,7 @@ def _warmup(model, cfg, device):
 
     with torch.no_grad():
         for _ in range(3):
-            beam_mask = encoder.encode(dummy_beam_params, body_mask=dummy_body_mask).unsqueeze(0)
+            beam_mask = encoder.encode(dummy_beam_params, body_mask=dummy_body_mask, ct=dummy_ct[0]).unsqueeze(0)
             with torch.autocast(device_type="cuda", enabled=(amp and device.type == "cuda")):
                 model(dummy_ct, beam_mask)
     if device.type == "cuda":
@@ -200,7 +200,7 @@ def predict_beamlet(model, encoder, ct_tensor, body_mask, ray, beamlet, device, 
         "ray_target": torch.tensor(ray["ray_target"], dtype=torch.float32, device=device),
         "energy": float(beamlet["energy"]),
     }
-    beam_mask = encoder.encode(beam_params, body_mask=body_mask).unsqueeze(0)
+    beam_mask = encoder.encode(beam_params, body_mask=body_mask, ct=ct_tensor[0]).unsqueeze(0)
     with torch.autocast(device_type="cuda", enabled=(amp and device.type == "cuda")):
         pred = model(ct_tensor, beam_mask)
     return (pred.squeeze(0).squeeze(0) / dose_scale).float()  # (D, H, W), stays on device
